@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NBA Risers Board</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif}
+[hidden]{display:none!important}
+/* each row: 0-100 track, dot = score now, arrow = projected 2026-27 if he earns a real role, band = 80% range */
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --fg:#181b22; --muted:#626a78; --line:#dfe2e8;
+  --accent:#1f4fa8; --accent-soft:#d9e3f5; --track:#e8ebf0; --now:#626a78; --thr:#2f7d4f; --moved:#b4532a;
+  --pos:#2f7d4f; --neg:#b4473f;
+  --c0:#c8473f; --c1:#e08a3c; --c2:#d9bd3f; --c3:#8dba5a; --c4:#2f9a5c;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12141a; --panel:#1b1e26; --fg:#eef0f4; --muted:#9aa2b1; --line:#2d313c;
+  --accent:#6f9cf0; --accent-soft:#25324d; --track:#272b35; --now:#9aa2b1; --thr:#5fbf86; --moved:#e08a5c;
+  --pos:#5fbf86; --neg:#e07a72;
+  --c0:#d9605a; --c1:#e69a52; --c2:#d9c35a; --c3:#9bc96a; --c4:#4cbf7d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12141a; --panel:#1b1e26; --fg:#eef0f4; --muted:#9aa2b1; --line:#2d313c;
+  --accent:#6f9cf0; --accent-soft:#25324d; --track:#272b35; --now:#9aa2b1; --thr:#5fbf86; --moved:#e08a5c;
+  --pos:#5fbf86; --neg:#e07a72;
+  --c0:#d9605a; --c1:#e69a52; --c2:#d9c35a; --c3:#9bc96a; --c4:#4cbf7d; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-wrap:wrap;gap:12px 32px;justify-content:space-between;align-items:flex-end}
+h1{font:700 clamp(34px,6vw,54px)/.95 var(--display);text-transform:uppercase;letter-spacing:.01em;margin:0;text-wrap:balance}
+h1 span{color:var(--accent)}
+.sub{color:var(--muted);font-size:14px;max-width:48ch;line-height:1.45;margin:0}
+.bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;font-size:13px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{font:500 13px var(--body);background:var(--panel);color:var(--fg);border:0;padding:7px 12px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-selected="true"]{background:var(--accent);color:var(--panel)}
+.seg button:focus-visible,.row-btn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}
+.legend i{display:inline-block;vertical-align:middle;margin-right:6px}
+.k-now{width:10px;height:10px;border-radius:50%;background:var(--now)}
+.k-arr{width:22px;height:4px;background:var(--accent);border-radius:2px}
+.k-band{width:22px;height:10px;background:var(--accent-soft);border-radius:3px}
+.k-q{width:0;height:12px;border-left:2px dashed var(--thr)}
+.board{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 16px 10px}
+.axis,.row-btn{display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr) 150px 84px;gap:0 14px;align-items:center}
+.axis{padding:10px 0 4px;font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.axis .ticks{position:relative;height:14px}
+.axis .ticks span{position:absolute;transform:translateX(-50%)}
+.axis .r{text-align:right;white-space:nowrap}
+.row{border-top:1px solid var(--line)}
+.row-btn{width:100%;background:none;border:0;color:inherit;font:inherit;text-align:left;padding:8px 0;cursor:pointer}
+@media (prefers-reduced-motion:no-preference){.row-btn{transition:background .15s}}
+.row-btn:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.who{min-width:0}
+.who b{font:600 17px/1.1 var(--display);letter-spacing:.01em;display:block;overflow-wrap:anywhere}
+.who small{color:var(--muted);font-size:12px;display:block}
+.tm{display:block;font:500 11.5px/1.3 var(--body);color:var(--muted);margin-top:2px}
+.tm b{display:inline;font:600 11.5px/1.3 var(--body);letter-spacing:0;color:var(--fg)}
+.tm.mv b{color:var(--moved)} .tm.nt b{color:var(--neg)}
+.track{position:relative;height:22px;background:var(--track);border-radius:11px}
+.track .band{position:absolute;top:4px;height:14px;background:var(--accent-soft);border-radius:7px}
+.track .q{position:absolute;top:-3px;bottom:-3px;border-left:2px dashed var(--thr);opacity:.85}
+.track .gain{position:absolute;top:9px;height:4px;background:var(--accent);border-radius:2px}
+.track .head{position:absolute;top:4px;width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:10px solid var(--accent);transform:translateX(-9px)}
+.track .head.down{border-left:0;border-right:10px solid var(--accent);transform:translateX(-1px)}
+.track .now{position:absolute;top:3px;width:12px;height:12px;border-radius:50%;background:var(--now);transform:translateX(-6px);border:2px solid var(--panel)}
+.track .gain.hold{background:var(--now);opacity:.55}
+.track .tick{position:absolute;top:2px;width:3px;height:18px;border-radius:2px;background:var(--now);transform:translateX(-1px)}
+.num em.hold{color:var(--muted);font-weight:500}
+.k-hold{width:22px;height:4px;background:var(--now);opacity:.55;border-radius:2px}
+.num{font:600 14px var(--body);text-align:right;font-variant-numeric:tabular-nums}
+.num em{font-style:normal;color:var(--accent);margin-left:4px;font-size:12px}
+.num small{display:block;color:var(--muted);font:500 11.5px var(--body)}
+.pill{font:600 14px var(--body);text-align:center;border-radius:5px;padding:4px 0;color:#14110f;font-variant-numeric:tabular-nums}
+.pill small{display:block;font:500 10.5px var(--body);opacity:.8}
+.why{padding:4px 0 14px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:12px 28px}
+.why h3{margin:0 0 6px;font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.parts{display:grid;grid-template-columns:96px minmax(0,1fr) 44px;gap:5px 10px;align-items:center;font-size:12.5px}
+.pbar{position:relative;height:10px;background:var(--track);border-radius:5px}
+.pbar .mid{position:absolute;left:50%;top:-2px;bottom:-2px;border-left:1px solid var(--muted);opacity:.5}
+.pbar .fill{position:absolute;top:0;bottom:0;border-radius:5px}
+.parts .v{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12.5px;margin:0}
+.facts dt{color:var(--muted)} .facts dd{margin:0;font-variant-numeric:tabular-nums}
+.foot{color:var(--muted);font-size:12.5px;line-height:1.5;max-width:82ch;margin:0}
+.method{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 24px;border-top:1px solid var(--line);padding-top:14px}
+.method h2{font:600 15px/1.2 var(--display);text-transform:uppercase;letter-spacing:.04em;margin:0 0 4px}
+.method p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+@media (max-width:680px){
+  .axis{display:none}
+  .row-btn{grid-template-columns:minmax(0,1fr) 84px;gap:6px 10px}
+  .who{grid-column:1/-1}
+  .track{grid-column:1/-1;order:2}
+  .row-btn .num,.row-btn .pill{order:3}
+  .why{grid-template-columns:minmax(0,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>2026-27 <span>risers board</span></h1>
+  <p class="sub" id="sub"></p>
+</header>
+
+<div class="bar">
+  <div class="seg" role="tablist" aria-label="List">
+    <button type="button" role="tab" id="tab-breakout" data-t="breakout" aria-selected="true">Breakout Candidates</button>
+    <button type="button" role="tab" id="tab-diamond" data-t="diamond" aria-selected="false">Diamond Candidates</button>
+    <button type="button" role="tab" id="tab-fall" data-t="fall" aria-selected="false">Regression Watch</button>
+  </div>
+  <div class="legend">
+    <span><i class="k-now"></i>Score now</span>
+    <span><i class="k-arr"></i>Projected 2026-27, if he earns a real role</span>
+    <span><i class="k-band"></i>80% range</span>
+    <span id="lg-hold" hidden><i class="k-hold"></i>Holds near his level</span>
+    <span id="lg-thr"><i class="k-q"></i>Top-quarter line (75)</span>
+  </div>
+</div>
+
+<div class="board" role="tabpanel" aria-labelledby="tab-breakout" id="panel">
+  <div class="axis">
+    <span>Player · click a row for details</span>
+    <div class="ticks"><span style="left:0%">0</span><span style="left:25%">25</span><span style="left:50%">50</span><span style="left:75%">75</span><span style="left:99%">100</span></div>
+    <span class="r">Now → if role</span><span class="r" id="ax-pill">Breakout %</span>
+  </div>
+  <div id="rows"></div>
+</div>
+
+<p class="foot" id="foot"></p>
+
+<section class="method" aria-label="How it works">
+  <div><h2>The score</h2><p>Our own BPM, rebuilt from box scores with Basketball-Reference's BPM 2.0 formula. It matches their published BPM at r = 0.995 across 25 seasons. Small samples are shrunk, then ranked within the season among players with 500+ minutes. A 75 is the top quarter of the league.</p></div>
+  <div><h2>The models</h2><p>Trained on every season from 2001-02 to 2025-26, each paired with the player's next season. Inputs were cut from 52 candidates by keeping only those that improved predictions on seasons the model had not seen.</p></div>
+  <div><h2>Read it as a shortlist</h2><p>These are odds, not promises. The models cannot see injuries, coaching changes or crowded rotations, and the projected score carries a wide range. Use the board to pick who to watch on film.</p></div>
+</section>
+</div>
+
+<script>
+var DATA = {"breakout":{"threshold":75,"thr_label":"Top-quarter line (75)","pill_label":"Breakout %","sub":"The 25 players with the best chance of a top-quarter season in 2026-27 (score 75 or higher). Players with four or fewer years of experience and 300+ minutes in 2025-26 who are currently at or below 75.","foot":"Breakout % is the chance he finishes at 75 or higher, given a real role (1,000+ minutes). The arrow and its range assume the same real role, so every number on a row describes the same season. The small line under the percentage multiplies in his chance of getting that role. In the 2016-2025 backtest, 45 of the 100 top-ten picks reached 75 with a real role, against 9% of the pool, and 45 of the 83 who earned a real role got there. Chance of a real role reads a little high between 30% and 50%. Team moves come from ESPN's 2026-27 rosters; a team in orange means he changed teams.","rows":[{"name":"Dylan Harper","exp":0,"age":19,"last":"SA","next":"SA","status":"stay","now":74,"proj":83,"lo":59,"hi":100,"p_main":82,"p_role":95,"p_top":78,"p_if_role":88,"p_off":10,"bpm":1.3,"multi":1,"chg1":null,"mp":1559,"g":69,"parts":{"scoring":-1.3,"playmaking":1.5,"rebounding":-0.2,"defense":-0.1,"team":1.4}},{"name":"Day'Ron Sharpe","exp":4,"age":24,"last":"BKN","next":"BKN","status":"stay","now":72,"proj":76,"lo":53,"hi":98,"p_main":75,"p_role":52,"p_top":39,"p_if_role":90,"p_off":57,"bpm":1.5,"multi":0.8,"chg1":7,"mp":1159,"g":62,"parts":{"scoring":0.8,"playmaking":0.4,"rebounding":1.6,"defense":0,"team":-1.3}},{"name":"Collin Murray-Boyles","exp":0,"age":20,"last":"TOR","next":"TOR","status":"stay","now":68,"proj":77,"lo":53,"hi":99,"p_main":72,"p_role":85,"p_top":61,"p_if_role":88,"p_off":21,"bpm":1,"multi":0.6,"chg1":null,"mp":1245,"g":57,"parts":{"scoring":-0.4,"playmaking":0.2,"rebounding":0.7,"defense":0.4,"team":0.2}},{"name":"Cason Wallace","exp":2,"age":22,"last":"OKC","next":"OKC","status":"stay","now":73,"proj":76,"lo":52,"hi":97,"p_main":62,"p_role":96,"p_top":60,"p_if_role":83,"p_off":9,"bpm":1.1,"multi":0.9,"chg1":-2,"mp":2048,"g":77,"parts":{"scoring":-2.7,"playmaking":0.1,"rebounding":-0.5,"defense":2.5,"team":1.6}},{"name":"Santi Aldama","exp":4,"age":25,"last":"MEM","next":"DAL","status":"moved","now":71,"proj":68,"lo":45,"hi":90,"p_main":59,"p_role":77,"p_top":46,"p_if_role":63,"p_off":35,"bpm":1,"multi":1.1,"chg1":-16,"mp":1197,"g":43,"parts":{"scoring":0.2,"playmaking":0.9,"rebounding":0.5,"defense":0.2,"team":-0.9}},{"name":"Derik Queen","exp":0,"age":21,"last":"NO","next":"NO","status":"stay","now":52,"proj":67,"lo":43,"hi":88,"p_main":55,"p_role":87,"p_top":48,"p_if_role":66,"p_off":45,"bpm":-0.6,"multi":-0.6,"chg1":null,"mp":2028,"g":81,"parts":{"scoring":-1.7,"playmaking":0.7,"rebounding":0.9,"defense":0.4,"team":-0.9}},{"name":"Javon Small","exp":0,"age":23,"last":"MEM","next":"MEM","status":"stay","now":70,"proj":72,"lo":48,"hi":94,"p_main":54,"p_role":56,"p_top":30,"p_if_role":81,"p_off":64,"bpm":1.4,"multi":0.7,"chg1":null,"mp":830,"g":40,"parts":{"scoring":0.5,"playmaking":1.6,"rebounding":-0,"defense":0.2,"team":-0.9}},{"name":"Brandin Podziemski","exp":2,"age":22,"last":"GS","next":"GS","status":"stay","now":62,"proj":68,"lo":44,"hi":90,"p_main":48,"p_role":95,"p_top":46,"p_if_role":66,"p_off":24,"bpm":0.1,"multi":0.1,"chg1":-9,"mp":2334,"g":82,"parts":{"scoring":-0.1,"playmaking":0.8,"rebounding":-0.1,"defense":0,"team":-0.7}},{"name":"Alex Sarr","exp":1,"age":20,"last":"WSH","next":"WSH","status":"stay","now":65,"proj":64,"lo":40,"hi":86,"p_main":48,"p_role":67,"p_top":32,"p_if_role":67,"p_off":50,"bpm":0.4,"multi":-0.5,"chg1":51,"mp":1306,"g":48,"parts":{"scoring":-0.3,"playmaking":0.4,"rebounding":0.6,"defense":1.1,"team":-1.5}},{"name":"Branden Carlson","exp":1,"age":26,"last":"OKC","next":"POR","status":"moved","now":66,"proj":62,"lo":38,"hi":84,"p_main":43,"p_role":37,"p_top":16,"p_if_role":67,"p_off":80,"bpm":2.6,"multi":0.6,"chg1":19,"mp":491,"g":42,"parts":{"scoring":0.5,"playmaking":-0.1,"rebounding":0.5,"defense":-0,"team":1.6}},{"name":"Oso Ighodaro","exp":1,"age":23,"last":"PHX","next":"PHX","status":"stay","now":60,"proj":61,"lo":37,"hi":83,"p_main":42,"p_role":81,"p_top":34,"p_if_role":53,"p_off":54,"bpm":0,"multi":-0.4,"chg1":45,"mp":1810,"g":82,"parts":{"scoring":-1.2,"playmaking":0.5,"rebounding":0.6,"defense":-0.1,"team":0.2}},{"name":"VJ Edgecombe","exp":0,"age":20,"last":"PHI","next":"PHI","status":"stay","now":55,"proj":63,"lo":39,"hi":85,"p_main":39,"p_role":97,"p_top":38,"p_if_role":62,"p_off":32,"bpm":-0.6,"multi":-0.5,"chg1":null,"mp":2626,"g":75,"parts":{"scoring":-1.3,"playmaking":0.5,"rebounding":0,"defense":0.3,"team":-0.2}},{"name":"Kasparas Jakucionis","exp":0,"age":19,"last":"MIA","next":"MIL","status":"moved","now":54,"proj":62,"lo":38,"hi":84,"p_main":38,"p_role":74,"p_top":28,"p_if_role":64,"p_off":58,"bpm":-0.1,"multi":-0.5,"chg1":null,"mp":949,"g":53,"parts":{"scoring":-0.6,"playmaking":1.1,"rebounding":-0.1,"defense":-0.8,"team":0.3}},{"name":"Cedric Coward","exp":0,"age":22,"last":"MEM","next":"MEM","status":"stay","now":53,"proj":62,"lo":38,"hi":84,"p_main":36,"p_role":78,"p_top":28,"p_if_role":56,"p_off":59,"bpm":-0.6,"multi":-0.5,"chg1":null,"mp":1602,"g":62,"parts":{"scoring":0.7,"playmaking":0,"rebounding":0.4,"defense":-0.8,"team":-0.9}},{"name":"Jalen Green","exp":4,"age":23,"last":"PHX","next":"PHX","status":"stay","now":41,"proj":60,"lo":36,"hi":82,"p_main":35,"p_role":71,"p_top":25,"p_if_role":67,"p_off":55,"bpm":-1.3,"multi":-0.5,"chg1":-28,"mp":829,"g":32,"parts":{"scoring":-0.2,"playmaking":-1.6,"rebounding":-0.5,"defense":0.7,"team":0.2}},{"name":"Jaime Jaquez Jr.","exp":2,"age":24,"last":"MIA","next":"MIL","status":"moved","now":62,"proj":57,"lo":34,"hi":79,"p_main":32,"p_role":92,"p_top":29,"p_if_role":36,"p_off":61,"bpm":0.1,"multi":-0.1,"chg1":20,"mp":2123,"g":75,"parts":{"scoring":-0.8,"playmaking":1.3,"rebounding":0,"defense":-0.7,"team":0.3}},{"name":"Kyle Filipowski","exp":1,"age":22,"last":"UTAH","next":"UTAH","status":"stay","now":43,"proj":57,"lo":33,"hi":79,"p_main":31,"p_role":74,"p_top":23,"p_if_role":44,"p_off":59,"bpm":-1.1,"multi":-1,"chg1":-3,"mp":1802,"g":77,"parts":{"scoring":-0.1,"playmaking":0.4,"rebounding":1,"defense":-0.9,"team":-1.5}},{"name":"Ryan Rollins","exp":3,"age":23,"last":"MIL","next":"MIL","status":"stay","now":64,"proj":60,"lo":36,"hi":82,"p_main":31,"p_role":91,"p_top":28,"p_if_role":71,"p_off":54,"bpm":0.2,"multi":0.2,"chg1":15,"mp":2375,"g":74,"parts":{"scoring":0,"playmaking":0.4,"rebounding":-0.4,"defense":0.7,"team":-0.7}},{"name":"Tari Eason","exp":3,"age":24,"last":"HOU","next":"HOU","status":"stay","now":38,"proj":60,"lo":36,"hi":81,"p_main":30,"p_role":87,"p_top":26,"p_if_role":72,"p_off":45,"bpm":-1.5,"multi":-0.5,"chg1":-51,"mp":1554,"g":60,"parts":{"scoring":-1.7,"playmaking":-1.5,"rebounding":0.9,"defense":0.4,"team":0.4}},{"name":"Trayce Jackson-Davis","exp":2,"age":25,"last":"TOR","next":"TOR","status":"stay","now":32,"proj":58,"lo":34,"hi":80,"p_main":29,"p_role":21,"p_top":6,"p_if_role":73,"p_off":87,"bpm":-0.7,"multi":-0.8,"chg1":-35,"mp":499,"g":52,"parts":{"scoring":-1.7,"playmaking":0.2,"rebounding":0.9,"defense":0.4,"team":-0.6}},{"name":"Jabari Smith Jr.","exp":3,"age":22,"last":"HOU","next":"HOU","status":"stay","now":54,"proj":58,"lo":34,"hi":79,"p_main":28,"p_role":98,"p_top":27,"p_if_role":47,"p_off":37,"bpm":-0.7,"multi":-0.6,"chg1":6,"mp":2706,"g":77,"parts":{"scoring":0.1,"playmaking":-1.1,"rebounding":0.1,"defense":-0.4,"team":0.4}},{"name":"Sam Hauser","exp":4,"age":28,"last":"BOS","next":"BOS","status":"stay","now":69,"proj":64,"lo":40,"hi":86,"p_main":28,"p_role":88,"p_top":24,"p_if_role":64,"p_off":36,"bpm":0.8,"multi":0.7,"chg1":-2,"mp":1933,"g":78,"parts":{"scoring":0.7,"playmaking":0,"rebounding":-0.2,"defense":-0.8,"team":0.9}},{"name":"Joan Beringer","exp":0,"age":19,"last":"MIN","next":"MIN","status":"stay","now":44,"proj":60,"lo":37,"hi":82,"p_main":27,"p_role":28,"p_top":8,"p_if_role":61,"p_off":83,"bpm":1.3,"multi":-1,"chg1":null,"mp":315,"g":40,"parts":{"scoring":1.2,"playmaking":-1.2,"rebounding":0.8,"defense":-0.2,"team":0.7}},{"name":"Baylor Scheierman","exp":1,"age":25,"last":"BOS","next":"BOS","status":"stay","now":62,"proj":58,"lo":34,"hi":80,"p_main":27,"p_role":76,"p_top":20,"p_if_role":55,"p_off":64,"bpm":0.4,"multi":-0,"chg1":38,"mp":1434,"g":77,"parts":{"scoring":-0.1,"playmaking":0.2,"rebounding":0.2,"defense":-0.9,"team":0.9}},{"name":"Jay Huff","exp":4,"age":27,"last":"IND","next":"IND","status":"stay","now":65,"proj":64,"lo":40,"hi":86,"p_main":26,"p_role":64,"p_top":17,"p_if_role":47,"p_off":48,"bpm":0.5,"multi":0.6,"chg1":-20,"mp":1723,"g":82,"parts":{"scoring":0.8,"playmaking":-0.1,"rebounding":-0.1,"defense":0.8,"team":-0.9}}]},"diamond":{"threshold":60,"thr_label":"Useful-starter line (60)","pill_label":"Chance of 60+","sub":"The 25 players 27 or younger, currently below 50, with the best chance of a 60+ season with a real role in 2026-27. Every one of them has to climb at least 10 points to get there.","foot":"Chance of 60+ is the chance he plays a real role (1,000+ minutes) and scores 60 or higher; the small line is the same chance if he does get the role, and the arrow is his projected score in that case. In the 2016-2025 backtest, 28% of each year's top 25 did it, against 6% of the rest of the pool, and 15% of those who played 500+ minutes reached 75. The projected score alone overrates the lowest scorers, so this list ranks by the chance of becoming useful, not by the size of the climb. Team moves come from ESPN's 2026-27 rosters; a team in orange means he changed teams.","rows":[{"name":"Tari Eason","exp":3,"age":24,"last":"HOU","next":"HOU","status":"stay","now":38,"proj":60,"lo":36,"hi":81,"p_main":62,"p_role":87,"p_top":26,"p_if_role":72,"p_off":45,"bpm":-1.5,"multi":-0.5,"chg1":-51,"mp":1554,"g":60,"parts":{"scoring":-1.7,"playmaking":-1.5,"rebounding":0.9,"defense":0.4,"team":0.4}},{"name":"Jalen Green","exp":4,"age":23,"last":"PHX","next":"PHX","status":"stay","now":41,"proj":60,"lo":36,"hi":82,"p_main":48,"p_role":71,"p_top":25,"p_if_role":67,"p_off":55,"bpm":-1.3,"multi":-0.5,"chg1":-28,"mp":829,"g":32,"parts":{"scoring":-0.2,"playmaking":-1.6,"rebounding":-0.5,"defense":0.7,"team":0.2}},{"name":"Matas Buzelis","exp":1,"age":21,"last":"CHI","next":"CHI","status":"stay","now":46,"proj":53,"lo":29,"hi":75,"p_main":43,"p_role":87,"p_top":21,"p_if_role":49,"p_off":61,"bpm":-1.1,"multi":-1.1,"chg1":27,"mp":2248,"g":77,"parts":{"scoring":0.9,"playmaking":-1.6,"rebounding":-0,"defense":0.5,"team":-0.8}},{"name":"Shaedon Sharpe","exp":3,"age":22,"last":"POR","next":"POR","status":"stay","now":39,"proj":50,"lo":27,"hi":72,"p_main":40,"p_role":85,"p_top":12,"p_if_role":47,"p_off":69,"bpm":-1.5,"multi":-1.3,"chg1":-7,"mp":1471,"g":50,"parts":{"scoring":0.8,"playmaking":-2.9,"rebounding":-0.2,"defense":0.4,"team":0.3}},{"name":"Coby White","exp":6,"age":25,"last":"CHA","next":"CHA","status":"stay","now":50,"proj":56,"lo":32,"hi":78,"p_main":40,"p_role":67,"p_top":12,"p_if_role":60,"p_off":69,"bpm":-0.7,"multi":-0.7,"chg1":1,"mp":1249,"g":50,"parts":{"scoring":2.5,"playmaking":-0.8,"rebounding":-0.7,"defense":-1.6,"team":-0.2}},{"name":"Toumani Camara","exp":2,"age":25,"last":"POR","next":"POR","status":"stay","now":48,"proj":50,"lo":27,"hi":72,"p_main":38,"p_role":94,"p_top":9,"p_if_role":40,"p_off":54,"bpm":-1,"multi":-0.8,"chg1":-13,"mp":2730,"g":82,"parts":{"scoring":0.2,"playmaking":-1.1,"rebounding":-0.1,"defense":-0.4,"team":0.3}},{"name":"Aaron Wiggins","exp":4,"age":27,"last":"OKC","next":"ATL","status":"moved","now":47,"proj":56,"lo":32,"hi":78,"p_main":35,"p_role":80,"p_top":17,"p_if_role":44,"p_off":71,"bpm":-0.8,"multi":-0.4,"chg1":-31,"mp":1417,"g":65,"parts":{"scoring":-1.9,"playmaking":-1.3,"rebounding":-0.4,"defense":1,"team":1.6}},{"name":"Kyle Filipowski","exp":1,"age":22,"last":"UTAH","next":"UTAH","status":"stay","now":43,"proj":57,"lo":33,"hi":79,"p_main":33,"p_role":74,"p_top":23,"p_if_role":44,"p_off":59,"bpm":-1.1,"multi":-1,"chg1":-3,"mp":1802,"g":77,"parts":{"scoring":-0.1,"playmaking":0.4,"rebounding":1,"defense":-0.9,"team":-1.5}},{"name":"Egor Demin","exp":0,"age":19,"last":"BKN","next":"BKN","status":"stay","now":35,"proj":51,"lo":27,"hi":73,"p_main":31,"p_role":66,"p_top":12,"p_if_role":47,"p_off":73,"bpm":-1.7,"multi":-1.5,"chg1":null,"mp":1305,"g":52,"parts":{"scoring":-0,"playmaking":0.1,"rebounding":-0.6,"defense":-0,"team":-1.3}},{"name":"Keon Ellis","exp":3,"age":26,"last":"SAC","next":"BKN","status":"moved","now":45,"proj":55,"lo":32,"hi":77,"p_main":30,"p_role":67,"p_top":12,"p_if_role":45,"p_off":56,"bpm":-0.9,"multi":-0.3,"chg1":-36,"mp":1476,"g":72,"parts":{"scoring":-0.6,"playmaking":-1,"rebounding":-0.7,"defense":2,"team":-0.5}},{"name":"Jake LaRavia","exp":3,"age":24,"last":"LAL","next":"LAL","status":"stay","now":42,"proj":54,"lo":30,"hi":76,"p_main":30,"p_role":87,"p_top":13,"p_if_role":34,"p_off":50,"bpm":-1.2,"multi":-1,"chg1":-20,"mp":2064,"g":82,"parts":{"scoring":-1.8,"playmaking":-0.7,"rebounding":0.1,"defense":0.7,"team":0.5}},{"name":"Hugo Gonzalez","exp":0,"age":19,"last":"BOS","next":"BOS","status":"stay","now":30,"proj":50,"lo":27,"hi":72,"p_main":29,"p_role":75,"p_top":13,"p_if_role":38,"p_off":66,"bpm":-1.6,"multi":-1.7,"chg1":null,"mp":1083,"g":73,"parts":{"scoring":-1.1,"playmaking":-1.6,"rebounding":0.6,"defense":-0.5,"team":0.9}},{"name":"Christian Braun","exp":3,"age":24,"last":"DEN","next":"DEN","status":"stay","now":39,"proj":52,"lo":29,"hi":74,"p_main":28,"p_role":88,"p_top":14,"p_if_role":32,"p_off":39,"bpm":-1.7,"multi":-0.9,"chg1":-29,"mp":1399,"g":44,"parts":{"scoring":-1.4,"playmaking":0.4,"rebounding":-0.1,"defense":-1.1,"team":0.5}},{"name":"Jaren Jackson Jr.","exp":7,"age":26,"last":"MEM","next":"UTAH","status":"moved","now":41,"proj":54,"lo":30,"hi":76,"p_main":28,"p_role":73,"p_top":20,"p_if_role":38,"p_off":61,"bpm":-1.4,"multi":-0.4,"chg1":-43,"mp":1456,"g":48,"parts":{"scoring":1.4,"playmaking":-2,"rebounding":-0.1,"defense":0.2,"team":-0.9}},{"name":"Ja Morant","exp":6,"age":26,"last":"MEM","next":"POR","status":"moved","now":40,"proj":60,"lo":37,"hi":82,"p_main":27,"p_role":50,"p_top":23,"p_if_role":54,"p_off":82,"bpm":-1.5,"multi":-0.2,"chg1":-40,"mp":568,"g":20,"parts":{"scoring":-1.1,"playmaking":1,"rebounding":-0.8,"defense":0.2,"team":-0.9}},{"name":"Ryan Dunn","exp":1,"age":23,"last":"PHX","next":"PHX","status":"stay","now":45,"proj":49,"lo":25,"hi":71,"p_main":26,"p_role":65,"p_top":9,"p_if_role":40,"p_off":81,"bpm":-0.8,"multi":-1.5,"chg1":40,"mp":1356,"g":70,"parts":{"scoring":-1.7,"playmaking":-0.2,"rebounding":0.6,"defense":0.2,"team":0.2}},{"name":"Dominick Barlow","exp":3,"age":22,"last":"PHI","next":"PHI","status":"stay","now":41,"proj":51,"lo":27,"hi":72,"p_main":25,"p_role":76,"p_top":14,"p_if_role":32,"p_off":66,"bpm":-1.2,"multi":-1.2,"chg1":22,"mp":1685,"g":71,"parts":{"scoring":-1,"playmaking":-0.8,"rebounding":0.4,"defense":0.3,"team":-0.2}},{"name":"Jose Alvarado","exp":4,"age":27,"last":"NY","next":"NY","status":"stay","now":42,"proj":50,"lo":26,"hi":72,"p_main":24,"p_role":55,"p_top":6,"p_if_role":44,"p_off":79,"bpm":-1.1,"multi":-1.1,"chg1":5,"mp":1371,"g":69,"parts":{"scoring":-1.9,"playmaking":1.3,"rebounding":-0.6,"defense":0.3,"team":-0.2}},{"name":"Sion James","exp":0,"age":23,"last":"CHA","next":"CHA","status":"stay","now":31,"proj":45,"lo":21,"hi":66,"p_main":24,"p_role":84,"p_top":7,"p_if_role":29,"p_off":80,"bpm":-1.8,"multi":-1.7,"chg1":null,"mp":1840,"g":82,"parts":{"scoring":-2.2,"playmaking":0.2,"rebounding":-0.3,"defense":-0.7,"team":1}},{"name":"Ronald Holland II","exp":1,"age":20,"last":"DET","next":"DET","status":"stay","now":28,"proj":49,"lo":25,"hi":70,"p_main":23,"p_role":84,"p_top":15,"p_if_role":27,"p_off":61,"bpm":-2,"multi":-2.1,"chg1":16,"mp":1544,"g":78,"parts":{"scoring":-2.2,"playmaking":-1.9,"rebounding":0.3,"defense":0.6,"team":1.1}},{"name":"Jeremiah Fears","exp":0,"age":19,"last":"NO","next":"NO","status":"stay","now":20,"proj":43,"lo":19,"hi":64,"p_main":23,"p_role":86,"p_top":9,"p_if_role":27,"p_off":83,"bpm":-2.6,"multi":-2.3,"chg1":null,"mp":2110,"g":82,"parts":{"scoring":-1.4,"playmaking":-0.8,"rebounding":-0.4,"defense":0.8,"team":-0.9}},{"name":"Vit Krejci","exp":4,"age":25,"last":"POR","next":"POR","status":"stay","now":42,"proj":49,"lo":25,"hi":71,"p_main":23,"p_role":73,"p_top":5,"p_if_role":31,"p_off":57,"bpm":-1.1,"multi":-0.9,"chg1":-23,"mp":1389,"g":65,"parts":{"scoring":0.6,"playmaking":-0.3,"rebounding":-0.7,"defense":-0.5,"team":-0.2}},{"name":"Quentin Grimes","exp":4,"age":25,"last":"PHI","next":"LAL","status":"moved","now":38,"proj":47,"lo":23,"hi":68,"p_main":22,"p_role":91,"p_top":10,"p_if_role":25,"p_off":75,"bpm":-1.6,"multi":-1.1,"chg1":-32,"mp":2212,"g":75,"parts":{"scoring":-0.2,"playmaking":-0.3,"rebounding":-0.6,"defense":-0.3,"team":-0.2}},{"name":"Yves Missi","exp":1,"age":21,"last":"NO","next":"NO","status":"stay","now":32,"proj":45,"lo":22,"hi":67,"p_main":22,"p_role":58,"p_top":6,"p_if_role":38,"p_off":84,"bpm":-1.7,"multi":-2,"chg1":18,"mp":1295,"g":66,"parts":{"scoring":-2,"playmaking":-0.2,"rebounding":0.9,"defense":0.4,"team":-0.9}},{"name":"Kyshawn George","exp":1,"age":22,"last":"WSH","next":"WSH","status":"stay","now":40,"proj":45,"lo":21,"hi":66,"p_main":22,"p_role":62,"p_top":6,"p_if_role":36,"p_off":91,"bpm":-1.5,"multi":-1.8,"chg1":33,"mp":1389,"g":48,"parts":{"scoring":0,"playmaking":0.2,"rebounding":-0.1,"defense":-0.1,"team":-1.5}}]},"fall":{"threshold":60,"thr_label":"Useful-starter line (60)","pill_label":"Chance of falling","sub":"The 25 top-quarter players (75 or higher, 1,000+ minutes in 2025-26) most likely to fall below 60 in 2026-27 if they keep a real role.","foot":"Chance of falling is the chance he scores below 60, given he keeps a real role (1,000+ minutes); the arrow is his projected score in that case. The small line is the chance he either falls below 60 or loses the role. In the 2016-2025 backtest, 41% of each year's top 10 who kept a real role fell below 60, against 4% of the rest of the top-quarter pool, and 25% of the top 10 lost the role altogether. Odds above 50% have run high in past seasons, on few players. Age, a hot 3-point year, a one-season jump and a team change all raise the risk; a long record of strong seasons lowers it. Team moves come from ESPN's 2026-27 rosters; a team in orange means he changed teams.","rows":[{"name":"Paul George","exp":15,"age":35,"last":"PHI","next":"BOS","status":"moved","now":81,"proj":61,"lo":37,"hi":82,"p_main":61,"p_role":50,"p_top":15,"p_if_role":52,"p_off":80,"bpm":1.9,"multi":1.3,"chg1":25,"mp":1132,"g":37,"parts":{"scoring":1,"playmaking":0.2,"rebounding":-0.3,"defense":1.2,"team":-0.2}},{"name":"Luka Garza","exp":4,"age":27,"last":"BOS","next":"BOS","status":"stay","now":80,"proj":58,"lo":34,"hi":79,"p_main":48,"p_role":58,"p_top":14,"p_if_role":69,"p_off":69,"bpm":2.3,"multi":1.3,"chg1":67,"mp":1113,"g":69,"parts":{"scoring":2.7,"playmaking":-0.7,"rebounding":1.1,"defense":-1.8,"team":0.9}},{"name":"Grayson Allen","exp":7,"age":30,"last":"PHX","next":"CHA","status":"moved","now":83,"proj":66,"lo":42,"hi":88,"p_main":44,"p_role":75,"p_top":32,"p_if_role":66,"p_off":58,"bpm":2,"multi":1.3,"chg1":26,"mp":1469,"g":51,"parts":{"scoring":1.4,"playmaking":0.3,"rebounding":-0.6,"defense":0.6,"team":0.2}},{"name":"Javonte Green","exp":6,"age":32,"last":"DET","next":"DET","status":"stay","now":81,"proj":60,"lo":36,"hi":82,"p_main":43,"p_role":55,"p_top":11,"p_if_role":53,"p_off":68,"bpm":2.2,"multi":0.9,"chg1":61,"mp":1445,"g":82,"parts":{"scoring":0.3,"playmaking":-1.5,"rebounding":-0.1,"defense":2.2,"team":1.1}},{"name":"Jrue Holiday","exp":16,"age":35,"last":"POR","next":"POR","status":"stay","now":83,"proj":69,"lo":45,"hi":91,"p_main":36,"p_role":58,"p_top":20,"p_if_role":75,"p_off":63,"bpm":1.9,"multi":1.4,"chg1":15,"mp":1558,"g":53,"parts":{"scoring":0.5,"playmaking":0.9,"rebounding":0.1,"defense":0,"team":0.3}},{"name":"Julius Randle","exp":11,"age":31,"last":"MIN","next":"BKN","status":"moved","now":76,"proj":68,"lo":45,"hi":90,"p_main":36,"p_role":91,"p_top":50,"p_if_role":66,"p_off":41,"bpm":1.2,"multi":1.2,"chg1":-2,"mp":2612,"g":79,"parts":{"scoring":0.5,"playmaking":0.4,"rebounding":0.3,"defense":-0.7,"team":0.7}},{"name":"Nickeil Alexander-Walker","exp":6,"age":27,"last":"ATL","next":"ATL","status":"stay","now":75,"proj":64,"lo":40,"hi":86,"p_main":36,"p_role":94,"p_top":30,"p_if_role":70,"p_off":39,"bpm":1.1,"multi":0.8,"chg1":20,"mp":2603,"g":78,"parts":{"scoring":2.2,"playmaking":-0.6,"rebounding":-0.8,"defense":0.6,"team":-0.4}},{"name":"Jordan Goodwin","exp":4,"age":27,"last":"PHX","next":"PHX","status":"stay","now":77,"proj":64,"lo":41,"hi":86,"p_main":29,"p_role":76,"p_top":28,"p_if_role":78,"p_off":46,"bpm":1.6,"multi":1,"chg1":33,"mp":1576,"g":70,"parts":{"scoring":-1.2,"playmaking":0.3,"rebounding":0.9,"defense":1.4,"team":0.2}},{"name":"Cam Spencer","exp":1,"age":25,"last":"MEM","next":"MEM","status":"stay","now":83,"proj":71,"lo":47,"hi":93,"p_main":27,"p_role":77,"p_top":47,"p_if_role":86,"p_off":44,"bpm":2.1,"multi":1.6,"chg1":44,"mp":1717,"g":72,"parts":{"scoring":0.7,"playmaking":3,"rebounding":-0.6,"defense":-0.2,"team":-0.9}},{"name":"Kevin Porter Jr.","exp":6,"age":25,"last":"MIL","next":"MIL","status":"stay","now":78,"proj":73,"lo":49,"hi":94,"p_main":26,"p_role":81,"p_top":53,"p_if_role":81,"p_off":41,"bpm":1.4,"multi":0.9,"chg1":31,"mp":1261,"g":38,"parts":{"scoring":-1.6,"playmaking":1.3,"rebounding":-0.2,"defense":2.5,"team":-0.7}},{"name":"Lauri Markkanen","exp":8,"age":28,"last":"UTAH","next":"UTAH","status":"stay","now":82,"proj":70,"lo":46,"hi":92,"p_main":26,"p_role":76,"p_top":42,"p_if_role":78,"p_off":44,"bpm":1.7,"multi":1.3,"chg1":31,"mp":1444,"g":42,"parts":{"scoring":4.1,"playmaking":-0.9,"rebounding":0.2,"defense":-0.2,"team":-1.5}},{"name":"Jaylen Brown","exp":9,"age":29,"last":"BOS","next":"PHI","status":"moved","now":94,"proj":74,"lo":51,"hi":96,"p_main":24,"p_role":96,"p_top":76,"p_if_role":88,"p_off":27,"bpm":3.3,"multi":2.5,"chg1":29,"mp":2443,"g":71,"parts":{"scoring":3.5,"playmaking":-0.9,"rebounding":0.2,"defense":-0.5,"team":0.9}},{"name":"Moussa Diabate","exp":3,"age":24,"last":"CHA","next":"CHA","status":"stay","now":79,"proj":63,"lo":40,"hi":85,"p_main":22,"p_role":88,"p_top":41,"p_if_role":76,"p_off":31,"bpm":1.6,"multi":0.9,"chg1":54,"mp":1900,"g":73,"parts":{"scoring":-0.9,"playmaking":0.4,"rebounding":1.3,"defense":-0.3,"team":1}},{"name":"Mitchell Robinson","exp":7,"age":27,"last":"NY","next":"BOS","status":"moved","now":86,"proj":74,"lo":50,"hi":95,"p_main":21,"p_role":71,"p_top":56,"p_if_role":94,"p_off":44,"bpm":3,"multi":2.1,"chg1":22,"mp":1176,"g":60,"parts":{"scoring":-0.4,"playmaking":-0.9,"rebounding":2.3,"defense":1.1,"team":1}},{"name":"Ajay Mitchell","exp":1,"age":23,"last":"OKC","next":"OKC","status":"stay","now":79,"proj":73,"lo":49,"hi":94,"p_main":20,"p_role":91,"p_top":63,"p_if_role":76,"p_off":27,"bpm":1.7,"multi":1.1,"chg1":50,"mp":1471,"g":57,"parts":{"scoring":-1,"playmaking":0.7,"rebounding":-0.4,"defense":0.8,"team":1.6}},{"name":"Dru Smith","exp":3,"age":28,"last":"MIA","next":"MIA","status":"stay","now":77,"proj":69,"lo":45,"hi":90,"p_main":19,"p_role":54,"p_top":24,"p_if_role":63,"p_off":56,"bpm":2,"multi":1.2,"chg1":26,"mp":1146,"g":70,"parts":{"scoring":-3,"playmaking":1.3,"rebounding":0.1,"defense":3.2,"team":0.3}},{"name":"Julian Champagnie","exp":3,"age":24,"last":"SA","next":"SA","status":"stay","now":76,"proj":63,"lo":39,"hi":84,"p_main":19,"p_role":94,"p_top":33,"p_if_role":66,"p_off":24,"bpm":1.3,"multi":0.7,"chg1":38,"mp":2267,"g":82,"parts":{"scoring":0.5,"playmaking":-0.6,"rebounding":0.1,"defense":-0.2,"team":1.4}},{"name":"Isaiah Joe","exp":5,"age":26,"last":"OKC","next":"DET","status":"moved","now":86,"proj":71,"lo":47,"hi":93,"p_main":19,"p_role":89,"p_top":48,"p_if_role":73,"p_off":27,"bpm":2.6,"multi":1.8,"chg1":8,"mp":1506,"g":71,"parts":{"scoring":2.7,"playmaking":-0.6,"rebounding":-0.6,"defense":-0.5,"team":1.6}},{"name":"Brandon Miller","exp":2,"age":23,"last":"CHA","next":"CHA","status":"stay","now":80,"proj":68,"lo":45,"hi":90,"p_main":18,"p_role":94,"p_top":43,"p_if_role":79,"p_off":23,"bpm":1.6,"multi":1,"chg1":21,"mp":1969,"g":65,"parts":{"scoring":1.8,"playmaking":-1.2,"rebounding":-0.1,"defense":0,"team":1}},{"name":"Desmond Bane","exp":5,"age":27,"last":"ORL","next":"ORL","status":"stay","now":78,"proj":74,"lo":51,"hi":96,"p_main":15,"p_role":96,"p_top":57,"p_if_role":82,"p_off":19,"bpm":1.2,"multi":1.5,"chg1":-11,"mp":2757,"g":82,"parts":{"scoring":1.6,"playmaking":0.1,"rebounding":-0.4,"defense":-0.5,"team":0.4}},{"name":"Nikola Vucevic","exp":14,"age":35,"last":"CHI","next":"ORL","status":"moved","now":76,"proj":62,"lo":38,"hi":83,"p_main":15,"p_role":60,"p_top":18,"p_if_role":53,"p_off":50,"bpm":1.3,"multi":1.3,"chg1":-11,"mp":1819,"g":64,"parts":{"scoring":-0.1,"playmaking":1.6,"rebounding":0.9,"defense":-0.7,"team":-0.5}},{"name":"Tyler Herro","exp":6,"age":26,"last":"MIA","next":"MIL","status":"moved","now":80,"proj":73,"lo":50,"hi":95,"p_main":14,"p_role":86,"p_top":62,"p_if_role":74,"p_off":26,"bpm":1.8,"multi":2,"chg1":-11,"mp":1029,"g":33,"parts":{"scoring":2.2,"playmaking":0.4,"rebounding":-0.5,"defense":-0.6,"team":0.3}},{"name":"OG Anunoby","exp":8,"age":28,"last":"NY","next":"NY","status":"stay","now":84,"proj":70,"lo":46,"hi":92,"p_main":14,"p_role":94,"p_top":40,"p_if_role":80,"p_off":19,"bpm":1.8,"multi":1.4,"chg1":9,"mp":2226,"g":67,"parts":{"scoring":1.4,"playmaking":-1.5,"rebounding":-0.1,"defense":1,"team":1}},{"name":"Michael Porter Jr.","exp":6,"age":27,"last":"BKN","next":"BKN","status":"stay","now":91,"proj":75,"lo":51,"hi":96,"p_main":14,"p_role":79,"p_top":53,"p_if_role":89,"p_off":32,"bpm":3,"multi":1.8,"chg1":32,"mp":1690,"g":52,"parts":{"scoring":5.3,"playmaking":-1,"rebounding":0.3,"defense":-0.5,"team":-1.3}},{"name":"Devin Booker","exp":10,"age":29,"last":"PHX","next":"PHX","status":"stay","now":90,"proj":80,"lo":56,"hi":100,"p_main":13,"p_role":92,"p_top":70,"p_if_role":87,"p_off":20,"bpm":2.7,"multi":2.1,"chg1":19,"mp":2148,"g":64,"parts":{"scoring":3.7,"playmaking":0.2,"rebounding":-0.6,"defense":-0.9,"team":0.2}}]}};
+var cur = "breakout";
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
+function col(p){return p>=60?"var(--c4)":p>=45?"var(--c3)":p>=30?"var(--c2)":p>=15?"var(--c1)":"var(--c0)"}
+// on Regression Watch a high number is bad news, so flip the scale
+function colRisk(p){return p>=45?"var(--c0)":p>=30?"var(--c1)":p>=20?"var(--c2)":p>=10?"var(--c3)":"var(--c4)"}
+function pct(p){return Math.round(p)+"%"}
+function ordinal(n){return n+(n===2?"nd":n===3?"rd":"th")}
+function teamLine(d){
+  if(d.status==="no team listed") return '<span class="tm nt" title="'+esc(d.last)+' last season">'+esc(d.last)+' → <b>no 2026-27 team listed</b></span>';
+  if(d.status==="moved") return '<span class="tm mv">'+esc(d.last)+' → <b>'+esc(d.next)+'</b></span>';
+  return '<span class="tm"><b>'+esc(d.next)+'</b> (same team)</span>';
+}
+function partsHtml(d){
+  var names=[["Scoring","scoring"],["Playmaking","playmaking"],["Rebounding","rebounding"],["Box defense","defense"],["Team context","team"]];
+  var max=Math.max(4,Math.max.apply(null,names.map(function(n){return Math.abs(d.parts[n[1]])})));
+  return names.map(function(n){
+    var v=d.parts[n[1]], w=Math.min(50,Math.abs(v)/max*50);
+    var style=v>=0?'left:50%;width:'+w+'%;background:var(--pos)':'right:50%;width:'+w+'%;background:var(--neg)';
+    return '<span>'+n[0]+'</span><div class="pbar" role="img" aria-label="'+n[0]+' '+v.toFixed(1)+'"><span class="mid"></span><span class="fill" style="'+style+'"></span></div><span class="v">'+(v>0?"+":"")+v.toFixed(1)+'</span>';
+  }).join("");
+}
+function render(){
+  var L=DATA[cur], thr=L.threshold;
+  document.getElementById("sub").textContent=L.sub;
+  document.getElementById("foot").textContent=L.foot;
+  document.getElementById("ax-pill").textContent=L.pill_label;
+  document.getElementById("lg-thr").innerHTML='<i class="k-q"></i>'+esc(L.thr_label);
+  document.getElementById("lg-hold").hidden=!L.rows.some(function(d){var g=d.proj-d.now;return g>=-5&&g<=2});
+  document.getElementById("panel").setAttribute("aria-labelledby","tab-"+cur);
+  document.getElementById("rows").innerHTML=L.rows.map(function(d,i){
+    var g=d.proj-d.now, lo=Math.min(d.now,d.proj), w=Math.abs(g);
+    // projected within 5 below / 2 above his score: show "holds" instead of an arrow
+    var hold=g>=-5 && g<=2;
+    var head=hold?'<span class="tick" style="left:'+d.proj+'%"></span>':
+      (g>=0?'<span class="head" style="left:'+d.proj+'%"></span>':'<span class="head down" style="left:'+d.proj+'%"></span>');
+    var meta;
+    if(cur==="fall") meta="Age "+d.age+" · "+pct(d.p_role)+" chance of keeping a real role";
+    else if(cur==="breakout") meta=(d.exp===0?"Rookie last season":ordinal(d.exp+1)+" season last year")+" · age "+d.age+" · "+pct(d.p_role)+" chance of a real role";
+    else meta="Age "+d.age+" · "+pct(d.p_role)+" chance of a real role";
+    var pillSub=cur==="breakout"?pct(d.p_top)+" overall":cur==="fall"?pct(d.p_off)+" overall":pct(d.p_if_role)+" if role";
+    var pillCol=cur==="fall"?colRisk(d.p_main):col(d.p_main);
+    return '<div class="row">'+
+      '<button type="button" class="row-btn" aria-expanded="false" aria-controls="why-'+i+'" data-i="'+i+'">'+
+        '<span class="who"><b>'+esc(d.name)+'</b><small>'+esc(meta)+'</small>'+teamLine(d)+'</span>'+
+        '<span class="track" role="img" aria-label="'+esc(d.name)+': '+d.now+' now, projected '+d.proj+' (80% range '+d.lo+' to '+d.hi+')">'+
+          '<span class="band" style="left:'+d.lo+'%;width:'+(d.hi-d.lo)+'%"></span>'+
+          '<span class="q" style="left:'+thr+'%"></span>'+
+          '<span class="gain'+(hold?' hold':'')+'" style="left:'+lo+'%;width:'+w+'%"></span>'+head+
+          '<span class="now" style="left:'+d.now+'%"></span></span>'+
+        '<span class="num">'+d.now+' → '+d.proj+(hold?'<em class="hold">holds</em>':'<em>'+(g>=0?"+":"")+g+'</em>')+'<small>'+(hold?'near his level · ':'')+'range '+d.lo+'–'+d.hi+'</small></span>'+
+        '<span class="pill" style="background:'+pillCol+'">'+pct(d.p_main)+'<small>'+pillSub+'</small></span>'+
+      '</button>'+
+      '<div class="why" id="why-'+i+'" hidden>'+
+        '<div><h3>2025-26 BPM '+(d.bpm>0?"+":"")+d.bpm.toFixed(1)+', by part (vs league average)</h3><div class="parts">'+partsHtml(d)+'</div></div>'+
+        '<div><h3>What the models weighed</h3><dl class="facts">'+
+          '<dt>Score now</dt><dd>'+d.now+' ('+d.mp.toLocaleString()+' min in '+d.g+' games)</dd>'+
+          '<dt>Age in 2025-26</dt><dd>'+d.age+'</dd>'+
+          '<dt>Multi-year BPM</dt><dd>'+(d.multi>0?"+":"")+d.multi.toFixed(1)+'</dd>'+
+          '<dt>Change from 2024-25</dt><dd>'+(d.chg1==null?"No prior season":(d.chg1>0?"+":"")+d.chg1+" points")+'</dd>'+
+          '<dt>2026-27 team</dt><dd>'+(d.status==="no team listed"?"None listed yet":d.status==="moved"?"New team ("+esc(d.next)+")":"Same team")+'</dd>'+
+        '</dl></div>'+
+      '</div></div>';
+  }).join("");
+}
+document.getElementById("rows").addEventListener("click",function(e){
+  var b=e.target.closest(".row-btn"); if(!b) return;
+  var w=document.getElementById("why-"+b.dataset.i), open=b.getAttribute("aria-expanded")==="true";
+  b.setAttribute("aria-expanded",!open); w.hidden=open;
+});
+document.querySelectorAll(".seg button").forEach(function(b){b.addEventListener("click",function(){
+  cur=b.dataset.t; document.querySelectorAll(".seg button").forEach(function(x){x.setAttribute("aria-selected",x===b)}); render()})});
+render();
+</script>
+</body>
+</html>
